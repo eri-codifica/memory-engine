@@ -17,8 +17,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  */
 export async function generateEmbedding(text) {
   return await withRetry('gemini_embed', async () => {
-    // We use text-embedding-004 as it is the most efficient and cost-effective model
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    // FIX: Switched to 'embedding-001' which is the stable, widely available 768-dim model
+    // If 'text-embedding-004' works for you later, you can swap it back, but this is safer for now.
+    const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     const result = await model.embedContent(text);
     return result.embedding.values; // Returns the raw array of floats
   });
