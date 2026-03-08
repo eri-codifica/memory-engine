@@ -1,2 +1,2 @@
 # memory-engine
-A Mortor for Vectorized Memory for AI Agents
+A Motor for Vectorized Memory for AI Agents
