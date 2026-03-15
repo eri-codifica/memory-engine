@@ -7,6 +7,33 @@ import { pruneExpiredMemories } from './memory/prune.js';
 const app = express();
 app.use(express.json());
 
+// --- SECURITY MIDDLEWARE ---
+const ENGINE_API_KEY = process.env.ENGINE_API_KEY;
+
+app.use((req, res, next) => {
+  // Allow unauthenticated pings to the health endpoint
+  if (req.path === '/health') {
+    return next();
+  }
+
+  const providedKey = req.headers['x-api-key'];
+
+  // Safety check: Ensure the server admin actually configured the secret
+  if (!ENGINE_API_KEY) {
+    logger.error('CRITICAL: ENGINE_API_KEY is not configured on the server.');
+    return res.status(500).json({ error: 'Server misconfiguration' });
+  }
+
+  // Auth check
+  if (!providedKey || providedKey !== ENGINE_API_KEY) {
+    logger.warn({ path: req.path, ip: req.ip }, 'Unauthorized access attempt rejected.');
+    return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-api-key header' });
+  }
+
+  next(); // Passed! Continue to the requested route.
+});
+// ---------------------------
+
 // Basic health check for Cloud Run
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'memory-engine' });
@@ -45,7 +72,6 @@ app.post('/memory/search', async (req, res) => {
 // Endpoint: Trigger Garbage Collection (Cron)
 app.post('/system/prune', async (req, res) => {
   try {
-    // In production, you would add a secret header check here so only GCP Scheduler can trigger this
     const result = await pruneExpiredMemories();
     res.status(200).json(result);
   } catch (error) {
@@ -53,7 +79,7 @@ app.post('/system/prune', async (req, res) => {
   }
 });
 
-// Start the server (Cloud Run injects the PORT env variable automatically)
+// Start the server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   logger.info(`🚀 Memory Engine is running and listening on port ${PORT}`);
